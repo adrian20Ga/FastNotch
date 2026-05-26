@@ -277,7 +277,7 @@ final class NotchController: NSObject {
     private func toggleFinderQuickAction() {
         let finder = NotchItem.defaults[0]
         if shownItem == finder {
-            launcher.hideFinderQuickAction()
+            launcher.hide(finder, restoresPreviousApp: true)
             shownItem = nil
             setPanelsExpanded(false)
             return
