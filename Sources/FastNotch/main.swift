@@ -628,15 +628,6 @@ final class NotchView: NSView {
         let path = NSBezierPath(roundedRect: bounds, xRadius: 14, yRadius: 14)
         (isExpanded ? NSColor(calibratedWhite: 0.035, alpha: 0.98) : .black).setFill()
         path.fill()
-
-        let color: NSColor = isHovered || isExpanded ? NSColor.systemCyan : NSColor(calibratedWhite: 0.72, alpha: 1)
-        color.setStroke()
-        let glyph = NSBezierPath()
-        glyph.lineWidth = 1.8
-        glyph.move(to: NSPoint(x: bounds.midX - 8, y: bounds.midY))
-        glyph.line(to: NSPoint(x: bounds.midX - 2, y: bounds.midY + 5))
-        glyph.line(to: NSPoint(x: bounds.midX + 8, y: bounds.midY - 5))
-        glyph.stroke()
     }
 }
 
@@ -646,10 +637,6 @@ enum AppIcon {
         image.lockFocus()
         NSColor.black.setFill()
         NSBezierPath(roundedRect: NSRect(x: 14, y: 40, width: 100, height: 48), xRadius: 22, yRadius: 22).fill()
-        NSColor.systemCyan.setStroke()
-        let notch = NSBezierPath(roundedRect: NSRect(x: 46, y: 55, width: 36, height: 22), xRadius: 8, yRadius: 8)
-        notch.lineWidth = 4
-        notch.stroke()
         image.unlockFocus()
         return image
     }
