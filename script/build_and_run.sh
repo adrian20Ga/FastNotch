@@ -11,9 +11,11 @@ DIST_DIR="$ROOT_DIR/dist"
 APP_BUNDLE="$DIST_DIR/$APP_NAME.app"
 APP_CONTENTS="$APP_BUNDLE/Contents"
 APP_MACOS="$APP_CONTENTS/MacOS"
+APP_RESOURCES="$APP_CONTENTS/Resources"
 APP_BINARY="$APP_MACOS/$APP_NAME"
 INFO_PLIST="$APP_CONTENTS/Info.plist"
 ENTITLEMENTS="$ROOT_DIR/FastNotch.entitlements"
+ICON_SOURCE="$ROOT_DIR/Resources/FastNotch.icns"
 INSTALLED_APP="/Applications/$APP_NAME.app"
 OLD_INSTALLED_APPS=("/Applications/NotchFinder.app" "/Applications/NotchUIX.app" "/Applications/NiceNotch.app" "/Applications/UtilNotch.app")
 
@@ -26,8 +28,9 @@ xcodebuild -scheme "$APP_NAME" -destination 'platform=macOS' -derivedDataPath "$
 BUILD_BINARY="$ROOT_DIR/.build/xcode/Build/Products/Debug/$APP_NAME"
 
 rm -rf "$APP_BUNDLE"
-mkdir -p "$APP_MACOS"
+mkdir -p "$APP_MACOS" "$APP_RESOURCES"
 cp "$BUILD_BINARY" "$APP_BINARY"
+cp "$ICON_SOURCE" "$APP_RESOURCES/FastNotch.icns"
 chmod +x "$APP_BINARY"
 
 /usr/libexec/PlistBuddy -c "Clear dict" "$INFO_PLIST" 2>/dev/null || true
@@ -35,6 +38,7 @@ chmod +x "$APP_BINARY"
 /usr/libexec/PlistBuddy -c "Add :CFBundleIdentifier string $BUNDLE_ID" "$INFO_PLIST"
 /usr/libexec/PlistBuddy -c "Add :CFBundleName string $APP_NAME" "$INFO_PLIST"
 /usr/libexec/PlistBuddy -c "Add :CFBundleDisplayName string FastNotch" "$INFO_PLIST"
+/usr/libexec/PlistBuddy -c "Add :CFBundleIconFile string FastNotch" "$INFO_PLIST"
 /usr/libexec/PlistBuddy -c "Add :CFBundlePackageType string APPL" "$INFO_PLIST"
 /usr/libexec/PlistBuddy -c "Add :LSMinimumSystemVersion string $MIN_SYSTEM_VERSION" "$INFO_PLIST"
 /usr/libexec/PlistBuddy -c "Add :LSUIElement bool true" "$INFO_PLIST"

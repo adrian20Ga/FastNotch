@@ -182,9 +182,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
 @MainActor
 final class NotchController: NSObject {
-    private let notchPanel: NSPanel
-    private let notchView: NotchView
     private let launcher = ItemLauncher()
+    private var notchPanels: [UInt32: NSPanel] = [:]
     private var activeItem: NotchItem
     private var shownItem: NotchItem?
     private var lastShowDate = Date.distantPast
@@ -196,26 +195,24 @@ final class NotchController: NSObject {
     override init() {
         activeItem = Self.loadSavedItem()
         interactionMode = Self.loadInteractionMode()
-        notchView = NotchView(frame: NSRect(x: 0, y: 0, width: 210, height: 32))
-
-        notchPanel = Self.makePanel(contentRect: notchView.bounds)
         super.init()
 
-        notchView.onToggle = { [weak self] in self?.toggleActiveItem() }
-        notchView.onHoverOpen = { [weak self] in self?.showActiveItemFromHover() }
-
-        notchPanel.contentView = notchView
         NSWorkspace.shared.notificationCenter.addObserver(
             self,
             selector: #selector(activeSpaceDidChange),
             name: NSWorkspace.activeSpaceDidChangeNotification,
             object: nil
         )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(screenParametersDidChange),
+            name: NSApplication.didChangeScreenParametersNotification,
+            object: nil
+        )
     }
 
     func show() {
-        reposition()
-        notchPanel.orderFrontRegardless()
+        rebuildPanels()
     }
 
     func selectBundleIdentifier(_ id: String) {
@@ -242,9 +239,12 @@ final class NotchController: NSObject {
         pendingHoverWorkItem?.cancel()
         pendingHoverWorkItem = nil
         shownItem = nil
-        notchView.setExpanded(false)
-        reposition()
-        notchPanel.orderFrontRegardless()
+        setPanelsExpanded(false)
+        rebuildPanels()
+    }
+
+    @objc private func screenParametersDidChange() {
+        rebuildPanels()
     }
 
     private func toggleActiveItem() {
@@ -279,7 +279,7 @@ final class NotchController: NSObject {
         if shownItem == finder {
             launcher.hideFinderQuickAction()
             shownItem = nil
-            notchView.setExpanded(false)
+            setPanelsExpanded(false)
             return
         }
         if let item = shownItem {
@@ -288,7 +288,7 @@ final class NotchController: NSObject {
         }
         shownItem = finder
         lastShowDate = Date()
-        notchView.setExpanded(true)
+        setPanelsExpanded(true)
         launcher.showFinderQuickAction()
     }
 
@@ -296,7 +296,7 @@ final class NotchController: NSObject {
         guard shownItem == nil else { return }
         shownItem = item
         lastShowDate = Date()
-        notchView.setExpanded(true)
+        setPanelsExpanded(true)
         launcher.show(item)
     }
 
@@ -304,16 +304,44 @@ final class NotchController: NSObject {
         guard let item = shownItem else { return }
         launcher.hide(item, restoresPreviousApp: true)
         shownItem = nil
-        notchView.setExpanded(false)
+        setPanelsExpanded(false)
     }
 
-    private func reposition() {
-        guard let screen = NSScreen.main else { return }
+    private func rebuildPanels() {
+        let currentIDs = Set(NSScreen.screens.compactMap { Self.screenID(for: $0) })
+        let staleIDs = notchPanels.keys.filter { !currentIDs.contains($0) }
+        for id in staleIDs {
+            notchPanels[id]?.orderOut(nil)
+            notchPanels.removeValue(forKey: id)
+        }
+
+        for screen in NSScreen.screens {
+            guard let id = Self.screenID(for: screen) else { continue }
+            let panel = notchPanels[id] ?? Self.makePanel()
+            if notchPanels[id] == nil {
+                let view = NotchView(frame: NSRect(origin: .zero, size: Self.notchSize))
+                view.onToggle = { [weak self] in self?.toggleActiveItem() }
+                view.onHoverOpen = { [weak self] in self?.showActiveItemFromHover() }
+                panel.contentView = view
+                notchPanels[id] = panel
+            }
+            position(panel: panel, on: screen)
+            (panel.contentView as? NotchView)?.setExpanded(shownItem != nil)
+            panel.orderFrontRegardless()
+        }
+    }
+
+    private func position(panel: NSPanel, on screen: NSScreen) {
         let frame = screen.frame
-        let notchSize = notchView.bounds.size
-        let notchX = frame.midX - notchSize.width / 2
-        let notchY = frame.maxY - notchSize.height + 1
-        notchPanel.setFrame(NSRect(origin: NSPoint(x: notchX, y: notchY), size: notchSize), display: true)
+        let notchX = frame.midX - Self.notchSize.width / 2
+        let notchY = frame.maxY - Self.notchSize.height + 1
+        panel.setFrame(NSRect(origin: NSPoint(x: notchX, y: notchY), size: Self.notchSize), display: true)
+    }
+
+    private func setPanelsExpanded(_ expanded: Bool) {
+        notchPanels.values.forEach { panel in
+            (panel.contentView as? NotchView)?.setExpanded(expanded)
+        }
     }
 
     private func saveActiveItem() {
@@ -344,8 +372,14 @@ final class NotchController: NSObject {
         return mode
     }
 
-    private static func makePanel(contentRect: NSRect) -> NSPanel {
-        let panel = NSPanel(contentRect: contentRect, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+    private static let notchSize = NSSize(width: 210, height: 32)
+
+    private static func screenID(for screen: NSScreen) -> UInt32? {
+        screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? UInt32
+    }
+
+    private static func makePanel() -> NSPanel {
+        let panel = NSPanel(contentRect: NSRect(origin: .zero, size: notchSize), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = false
