@@ -531,9 +531,13 @@ final class ItemLauncher {
     }
 
     private func openFinderHome() {
-        let homeURL = URL(fileURLWithPath: NSHomeDirectory(), isDirectory: true)
-        NSWorkspace.shared.open(homeURL)
-        activateFinder()
+        let source = """
+        tell application "Finder"
+            make new Finder window to home
+            activate
+        end tell
+        """
+        runScript(source, qos: .userInitiated)
     }
 
     private func activate(bundleIdentifier: String) {
