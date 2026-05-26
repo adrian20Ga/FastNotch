@@ -438,22 +438,11 @@ final class ItemLauncher {
 
     func showFinderQuickAction() {
         rememberFrontmostApp(excluding: "com.apple.finder")
-        let source: String
         if hasFinderWindowInCurrentSpace() {
-            source = """
-            tell application "Finder"
-                set visible to true
-            end tell
-            """
+            activateFinder()
         } else {
-            source = """
-            tell application "Finder"
-                make new Finder window to home
-                set visible to true
-            end tell
-            """
+            openFinderHome()
         }
-        runScript(source, qos: .userInitiated)
     }
 
     func hideFinderQuickAction() {
@@ -477,22 +466,11 @@ final class ItemLauncher {
     }
 
     private func showFinder() {
-        let source: String
         if hasFinderWindowInCurrentSpace() {
-            source = """
-            tell application "Finder"
-                activate
-            end tell
-            """
+            activateFinder()
         } else {
-            source = """
-            tell application "Finder"
-                make new Finder window to home
-                activate
-            end tell
-            """
+            openFinderHome()
         }
-        runScript(source, qos: .userInitiated)
     }
 
     private func hideFinder(restoresPreviousApp: Bool) {
@@ -501,23 +479,17 @@ final class ItemLauncher {
             previousBundleIdentifier = nil
         }
 
-        var source = """
+        let source = """
         tell application "Finder"
             if exists Finder window 1 then
                 close front Finder window
             end if
         end tell
         """
-        if let returnTarget {
-            source += """
-
-            delay 0.05
-            tell application id "\(returnTarget)"
-                activate
-            end tell
-            """
-        }
         runScript(source, qos: .utility)
+        if let returnTarget {
+            activateAfterDelay(bundleIdentifier: returnTarget)
+        }
     }
 
     private func rememberFrontmostApp(excluding excludedBundleIdentifier: String?) {
@@ -547,6 +519,21 @@ final class ItemLauncher {
             }
             return width > 80 && height > 80
         }
+    }
+
+    private func activateFinder() {
+        if let finder = runningApplication(bundleIdentifier: "com.apple.finder") {
+            finder.unhide()
+            finder.activate(options: [.activateAllWindows])
+        } else {
+            NSWorkspace.shared.openApplication(at: applicationURL(for: "com.apple.finder"), configuration: .init())
+        }
+    }
+
+    private func openFinderHome() {
+        let homeURL = URL(fileURLWithPath: NSHomeDirectory(), isDirectory: true)
+        NSWorkspace.shared.open(homeURL)
+        activateFinder()
     }
 
     private func activate(bundleIdentifier: String) {
